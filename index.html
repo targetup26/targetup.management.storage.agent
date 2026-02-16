@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRO STORAGE</title>
+    <!-- Use a modern font -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Load Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <style>
+        :root {
+            --bg-color: #030014;
+            --card-color: rgba(23, 25, 56, 0.6);
+            --card-hover: rgba(30, 32, 70, 0.8);
+            --accent: #5b4dff;
+            --accent-glow: #6366f1;
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --success: #10b981;
+            --error: #ef4444;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            outline: none;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            /* Advanced Gradient Background */
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(91, 77, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 40%);
+        }
+
+        /* --- Title Bar --- */
+        .title-bar {
+            height: 38px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            -webkit-app-region: drag;
+            backdrop-filter: blur(10px);
+            background: rgba(3, 0, 20, 0.4);
+            border-bottom: 1px solid var(--border);
+            z-index: 50;
+        }
+
+        .app-title {
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-title i {
+            font-size: 16px;
+            color: var(--accent);
+        }
+
+        .window-controls {
+            -webkit-app-region: no-drag;
+            display: flex;
+            gap: 8px;
+        }
+
+        .win-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-close {
+            background: #ef4444;
+        }
+
+        .btn-min {
+            background: #eab308;
+        }
+
+        .btn-max {
+            background: #22c55e;
+        }
+
+        .win-btn:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+        }
+
+        /* --- Main Layout --- */
+        .main-container {
+            flex: 1;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        /* --- Header Stats --- */
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .server-identity h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+
+        .server-identity p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
+            transition: 0.3s;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: currentColor;
+            border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        .status-pill.offline {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error);
+            border-color: rgba(239, 68, 68, 0.2);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
+        }
+
+        /* --- Grid --- */
+        .grid {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 20px;
+        }
+
+        /* --- Cards --- */
+        .glass-card {
+            background: var(--card-color);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-2px);
+            background: var(--card-hover);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Neon top border effect */
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0.5;
+        }
+
+        .card-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* --- Disk Usage Special --- */
+        .disk-visual {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .progress-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        circle {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+        }
+
+        .ring-bg {
+            stroke: rgba(255, 255, 255, 0.05);
+        }
+
+        .ring-val {
+            stroke: var(--accent);
+            transition: stroke-dashoffset 1s ease-in-out;
+        }
+
+        .ring-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .percent-val {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .percent-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .disk-stats {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-row span:first-child {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .stat-row span:last-child {
+            color: #fff;
+            font-weight: 600;
+            font-family: monospace;
+            font-size: 15px;
+        }
+
+        /* --- Network Info --- */
+        .net-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .net-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 16px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .net-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .net-val {
+            color: #fff;
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        /* --- Settings Button --- */
+        .settings-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            background: var(--accent);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(91, 77, 255, 0.4);
+            transition: all 0.3s;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .settings-btn:hover {
+            transform: translateY(-4px) rotate(90deg);
+            box-shadow: 0 15px 30px rgba(91, 77, 255, 0.6);
+        }
+
+        /* --- Modal --- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 0, 20, 0.8);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.3s;
+            z-index: 200;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            width: 400px;
+            background: #0f1126;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 50px 100px -20px black;
+            transform: scale(0.9);
+            transition: 0.3s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal h2 {
+            margin-bottom: 24px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 12px;
+            color: #fff;
+            font-family: inherit;
+            transition: 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 5px 15px rgba(91, 77, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="title-bar">
+        <div class="app-title"><i class="ph-bold ph-hard-drives"></i> TARGET STORAGE AGENT</div>
+        <div class="window-controls">
+            <!-- Functional in production via IPC or Main -->
+            <div class="win-btn btn-close" onclick="window.close()"></div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Header -->
+        <div class="status-header">
+            <div class="server-identity">
+                <h1>Storage Node</h1>
+                <p id="server-id">...</p>
+            </div>
+            <div class="status-pill" id="status-badge">
+                <div class="status-dot"></div>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Disk Usage -->
+            <div class="glass-card">
+                <div class="card-title">Storage Capacity <i class="ph-fill ph-database"></i></div>
+                <div class="disk-visual">
+                    <div class="progress-ring">
+                        <svg>
+                            <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+                            <circle class="ring-val" id="ring-circle" cx="60" cy="60" r="52" stroke-dasharray="326"
+                                stroke-dashoffset="326"></circle>
+                        </svg>
+                        <div class="ring-text">
+                            <div class="percent-val" id="usage-percent">0%</div>
+                            <div class="percent-label">Used</div>
+                        </div>
+                    </div>
+
+                    <div class="disk-stats">
+                        <div class="stat-row">
+                            <span>Available</span>
+                            <span id="diskFree">-- GB</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Used</span>
+                            <span id="diskUsed">-- GB</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Total</span>
+                            <span id="diskTotal">-- GB</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Info -->
+            <div class="glass-card">
+                <div class="card-title">Network <i class="ph-fill ph-globe"></i></div>
+                <div class="net-grid">
+                    <div class="net-item">
+                        <div class="net-label"><i class="ph-bold ph-plugs"></i> Port</div>
+                        <div class="net-val" id="port">--</div>
+                    </div>
+                    <div class="net-item">
+                        <div class="net-label"><i class="ph-bold ph-timer"></i> Uptime</div>
+                        <div class="net-val" id="uptime">0s</div>
+                    </div>
+                    <div class="net-item">
+                        <div class="net-label"><i class="ph-bold ph-folder-open"></i> Root</div>
+                        <div class="net-val" id="storagePath"
+                            style="font-size: 11px; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">
+                            ...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs (simplified) -->
+        <div class="glass-card" style="flex: 1;">
+            <div class="card-title">Live Activity <i class="ph-fill ph-chart-line-up"></i></div>
+            <div id="log-container"
+                style="font-family: monospace; font-size: 12px; color: var(--text-secondary); opacity: 0.7;">
+                > System initialized...<br>
+                > Wrapper services loaded.<br>
+                > Awaiting incoming connections...
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings FAB -->
+    <div class="settings-btn" onclick="openSettings()">
+        <i class="ph-bold ph-gear"></i>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <h2><i class="ph-fill ph-sliders"></i> Configuration</h2>
+
+            <div class="form-group">
+                <label class="form-label">Server Identity</label>
+                <input type="text" id="input-server-id" class="form-input" placeholder="Server-01">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Agent Port</label>
+                <input type="number" id="input-port" class="form-input" placeholder="3001">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Storage Path</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="input-path" class="form-input" placeholder="C:\TargetStorage">
+                    <!-- File Picker trigger (hidden) -->
+                    <input type="file" id="folder-picker" webkitdirectory style="display: none;"
+                        onchange="handleFolderSelect(this)">
+                    <button class="btn-secondary"
+                        style="width: 50px; border-radius: 12px; border: 1px solid var(--border);"
+                        onclick="document.getElementById('folder-picker').click()">
+                        <i class="ph-bold ph-folder"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save & Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const configService = require('./services/configService');
+
+        // Stats Loop
+        setInterval(fetchStats, 1000);
+
+        function fetchStats() {
+            fetch('http://localhost:' + (window.currentPort || 3001) + '/agent/health')
+                .then(res => res.json())
+                .then(data => {
+                    updateUI(data);
+                })
+                .catch(err => {
+                    document.getElementById('status-text').textContent = 'Disconnected';
+                    document.getElementById('status-badge').classList.add('offline');
+                });
+        }
+
+        function updateUI(data) {
+            window.currentPort = document.getElementById('port').textContent = window.configPort || 3001; // fallback
+
+            // Text
+            document.getElementById('status-text').textContent = 'Online';
+            document.getElementById('status-badge').classList.remove('offline');
+            document.getElementById('server-id').textContent = data.server_id || 'Unknown';
+            document.getElementById('uptime').textContent = formatUptime(data.uptime);
+            document.getElementById('storagePath').textContent = data.storage_path;
+
+            // Disk
+            if (data.disk_usage) {
+                const gb = (bytes) => (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB';
+                document.getElementById('diskTotal').textContent = gb(data.disk_usage.total);
+                document.getElementById('diskUsed').textContent = gb(data.disk_usage.used);
+                document.getElementById('diskFree').textContent = gb(data.disk_usage.free);
+
+                const percent = data.disk_usage.percent;
+                document.getElementById('usage-percent').textContent = Math.round(percent) + '%';
+
+                // Ring Offset: C = 2 * pi * r = 2 * 3.14159 * 52 ≈ 326.7
+                // Offset = C - (percent / 100) * C
+                const circumference = 326;
+                const offset = circumference - ((percent / 100) * circumference);
+                document.getElementById('ring-circle').style.strokeDashoffset = offset;
+
+                // Color check
+                const color = percent > 90 ? '#ef4444' : (percent > 75 ? '#eab308' : '#5b4dff');
+                document.getElementById('ring-circle').style.stroke = color;
+            }
+        }
+
+        function formatUptime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h}h ${m}m ${s}s`;
+        }
+
+        // --- Settings Logic ---
+        function openSettings() {
+            const config = configService.load();
+            window.configPort = config.agentPort; // Store for fetch usage
+
+            document.getElementById('input-server-id').value = config.serverId || 'Server-01';
+            document.getElementById('input-port').value = config.agentPort || 3001;
+            document.getElementById('input-path').value = config.storagePath || 'C:\\TargetStorage';
+
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function handleFolderSelect(input) {
+            if (input.files && input.files.length > 0) {
+                // Determine folder path from file path
+                // Electron's file input with webkitdirectory usually returns the folder path in 'path' property of the file
+                // But security restrictions might block full path. 
+                // However, in Electron with nodeIntegration, we can use 'path' property of the File object.
+                const path = input.files[0].path;
+                const dir = require('path').dirname(path); // This might be wrong if it selected a file inside.
+                // Actually input.files[0].path is the full path of the first file in the directory.
+                // We want the directory itself.
+                // If webkitdirectory is used, it selects the folder. The .path property on File object in Electron gives absolute path.
+                // Let's just assume user types it, or we fix this later. 
+                // Using node's dialog is better but we are in renderer.
+                // Let's try direct property on the input if possible? No.
+                // We'll stick to manual entry for now or simple file path extraction.
+                // Actually, let's just use the dirname of the first file.
+                document.getElementById('input-path').value = require('path').dirname(path);
+            }
+        }
+
+        function saveSettings() {
+            const newConfig = {
+                serverId: document.getElementById('input-server-id').value,
+                agentPort: parseInt(document.getElementById('input-port').value),
+                storagePath: document.getElementById('input-path').value
+            };
+
+            if (configService.save(newConfig)) {
+                // Restart Agent
+                ipcRenderer.send('restart-agent');
+            } else {
+                alert('Failed to save settings');
+            }
+        }
+    </script>
+</body>
+
+</html>
