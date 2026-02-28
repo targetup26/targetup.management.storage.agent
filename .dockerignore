@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+logs
+storage
+uploads
+temp
+.env
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore
+dist
+build
+electron-builder.yml
