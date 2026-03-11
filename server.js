@@ -97,23 +97,33 @@ const upload = multer({
 // File upload endpoint (Modified for Multipart Stream)
 app.post('/agent/upload', authValidator.validateJWT, upload.single('file'), async (req, res) => {
     try {
-        // Now using req.body for fields and req.file.buffer for data
-        const { department, employee, filename } = req.body;
+        const { department, employee, filename, rel_path } = req.body;
         const filedata = req.file ? req.file.buffer : null;
 
-        if (!department || !employee || !filename || !filedata) {
-            return res.status(400).json({ error: 'Missing required fields (department, employee, filename, file)' });
+        if (!filename || !filedata) {
+            return res.status(400).json({ error: 'Missing required fields (filename, file)' });
         }
 
-        // Ensure folder exists
-        const folderPath = folderManager.ensureFolderExists(department, employee);
+        let folderPath;
+        if (rel_path) {
+            // Use explicit relative path (supports hierarchical folder structure)
+            folderPath = folderManager.validatePath(rel_path);
+            const fs = require('fs');
+            if (!fs.existsSync(folderPath)) {
+                fs.mkdirSync(folderPath, { recursive: true });
+            }
+        } else {
+            if (!department || !employee) {
+                return res.status(400).json({ error: 'Missing required fields (department, employee)' });
+            }
+            folderPath = folderManager.ensureFolderExists(department, employee);
+        }
 
         // Save file
         const result = await fileHandler.saveFile(folderPath, filename, filedata);
 
         logger.info('File uploaded successfully', {
-            department,
-            employee,
+            folderPath,
             filename,
             size: result.size
         });
@@ -160,6 +170,53 @@ app.get('/agent/download', authValidator.validateJWT, async (req, res) => {
             filepath: req.query.filepath
         });
         res.status(500).json({ error: 'Download failed', message: error.message });
+    }
+});
+
+// --- [NEW] Create Physical Folder Endpoint ---
+app.post('/agent/create-folder', authValidator.validateJWT, async (req, res) => {
+    try {
+        const { rel_path } = req.body; // e.g. "Engineering/John Doe/Projects"
+        if (!rel_path) {
+            return res.status(400).json({ error: 'rel_path is required' });
+        }
+
+        const absolutePath = folderManager.validatePath(rel_path);
+        const fs = require('fs');
+        if (!fs.existsSync(absolutePath)) {
+            fs.mkdirSync(absolutePath, { recursive: true });
+            logger.info('Physical folder created', { absolutePath });
+        }
+
+        res.json({ success: true, path: absolutePath });
+    } catch (error) {
+        logger.error('Create folder failed', { error: error.message });
+        res.status(500).json({ error: 'Failed to create folder', message: error.message });
+    }
+});
+
+// --- [NEW] Rename File or Directory Endpoint ---
+app.post('/agent/rename', authValidator.validateJWT, async (req, res) => {
+    try {
+        const { old_path, new_path } = req.body;
+        if (!old_path || !new_path) {
+            return res.status(400).json({ error: 'old_path and new_path are required' });
+        }
+
+        const absoluteOld = folderManager.validatePath(old_path);
+        const absoluteNew = folderManager.validatePath(new_path);
+        const fs = require('fs');
+
+        if (!fs.existsSync(absoluteOld)) {
+            return res.status(404).json({ error: 'Source path not found' });
+        }
+
+        fs.renameSync(absoluteOld, absoluteNew);
+        logger.info('Renamed on disk', { from: absoluteOld, to: absoluteNew });
+        res.json({ success: true });
+    } catch (error) {
+        logger.error('Rename failed', { error: error.message });
+        res.status(500).json({ error: 'Rename failed', message: error.message });
     }
 });
 
