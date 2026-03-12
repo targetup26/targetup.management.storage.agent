@@ -23,13 +23,16 @@ function ensureFolderExists(department, employee) {
 }
 
 function validatePath(filepath) {
+    // Normalize Windows backslashes to forward slashes for consistency
+    const normalizedInput = filepath.replace(/\\/g, '/');
+
     // If filepath is already absolute and starts with basePath, just normalize it
-    if (path.isAbsolute(filepath) && filepath.startsWith(basePath)) {
-        return path.normalize(filepath);
+    if (path.isAbsolute(normalizedInput) && normalizedInput.startsWith(basePath.replace(/\\/g, '/'))) {
+        return path.normalize(normalizedInput);
     }
 
     // Otherwise, treat it as relative to basePath and combine them
-    const fullPath = path.join(basePath, filepath);
+    const fullPath = path.join(basePath, normalizedInput);
     const normalizedPath = path.normalize(fullPath);
 
     // Security check: ensure the resulting path is still inside the basePath
