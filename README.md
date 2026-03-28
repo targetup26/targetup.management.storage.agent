@@ -1,65 +1,68 @@
-# <p align="center">📦 TargetUp - Distributed Storage Agent</p>
+# Targetup - Storage Agent Microservice
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
-  <img src="https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white" />
-  <img src="https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white" />
-  <img src="https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=json-web-tokens&logoColor=white" />
-</p>
+A highly-available, distributed file storage service for the Targetup ecosystem. It offloads heavy I/O operations from the main backend and generates secure, expiring File Share Links. Uniquely, this microservice can be packaged and installed as a persistent **Windows Service**.
 
----
-
-## 💎 Overview
-The **Storage Agent** is a specialized high-performance node designed to handle massive file ingestion, metadata management, and secure asset distribution within the **TargetUp Ecosystem**. It operates as a bridge between the Core Backend and physical storage assets.
-
-### ⚡ Technical Capabilities
-- **Secured Upload Pipeline**: Multi-part file ingestion with JWT-based identity verification.
-- **Intelligent Folder Management**: Automated directory orchestration with collision avoidance.
-- **Micro-UI**: Built-in monitoring dashboard accessible via local or remote web browsers.
-- **Hybrid Operation**: Capable of running as a standalone server or integrated within the desktop environment.
-- **Secure Diag**: Built-in diagnostic systems for firewall and connectivity repair.
+## 🚀 Technology Stack
+* **Runtime**: Node.js
+* **Framework**: Express
+* **File Processing**: Multer (Stream handling), Archiver (Zip generation)
+* **System Operations**: check-disk-space (Storage limit monitoring), node-windows (OS-level service mounting)
+* **Security**: JSON Web Tokens (JWT validation natively independent of Core Backend)
+* **Logging**: Winston, Winston-Daily-Rotate-File
 
 ---
 
-## 🏗️ Technical Stack (A to Z)
+## ⚙️ Environment Variables (`.env`)
+Create a `.env` file in the root of the `storage-agent` directory.
 
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Runtime** | `Node.js` | Low-latency server execution and file stream handling. |
-| **API Engine** | `Express.js` | Routing system for handling ingestion and retrieval calls. |
-| **Auth Shield** | `jsonwebtoken` | Token validation to ensure only authorized nodes upload assets. |
-| **Diagnostics** | `PowerShell` | System-level scripts (fix-firewall) for network orchestration. |
-| **Packaging** | `Electron Builder` | Generates native installers for cross-platform deployment. |
+```ini
+# Server Setup
+AGENT_PORT=3001
+NODE_ENV=production
 
----
+# Storage Location Setup (Absolute path is recommended for production)
+STORAGE_PATH=C:\TargetStorage
 
-## 🏗️ System Architecture
+# Security Config (Must match Core Backend)
+JWT_SECRET=super_secret_jwt_key_here
 
-```mermaid
-graph TD
-    A[Core Backend] -->|Authorized Post| B[Storage Agent API]
-    B -->|Verified Auth| C[File Handlers]
-    C -->|Physical Write| D[(Local/Cloud Storage)]
-    B -->|Status Feed| E[Web Dashboard UI]
+# Identifier
+SERVER_ID=StorageNode_01
 ```
 
 ---
 
-## 📡 Core API Inventory (A to Z)
+## 🛠️ Installation & Setup
 
-### 📤 1. Ingestion & Retrieval
-- `POST /upload`: Secure multi-part ingestion for files.
-- `GET /files/:id`: authorized download and resource streaming.
-- `DELETE /files/:id`: Permanent removal of enterprise assets.
+1. **Prerequisites**: Ensure you have Node.js (v18+) installed.
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Run the Development Server**:
+   ```bash
+   npm start
+   ```
+   The agent will run on `http://localhost:3001` and verify the `STORAGE_PATH` exists on startup.
 
-### 🛠️ 2. Management & Diag
-- `GET /health`: Real-time operational status heartbeat.
-- `POST /verify/config`: Validation of current storage paths and permissions.
-- `GET /dashboard`: Integrated visual interface for local monitoring.
+4. **Install as a Windows Platform Service**:
+   Run the following to integrate the app securely into the host OS's Service Control Manager (SCM):
+   ```bash
+   npm run install-service
+   ```
+   *(To remove the service later, run `npm run uninstall-service`)*
 
-### 🛡️ 3. Security Infrastructure
-- **JWT Validator**: Every request is gated by a cryptographically signed token.
-- **Path Sanitization**: Protection against directory traversal and unauthorized path injection.
+5. **Generate Packaged Executable (Electron-Builder)**:
+   ```bash
+   npm run build
+   ```
+   This generates standalone binaries in the `/dist` folder.
 
 ---
-<p align="center">*The Storage Backbone of the TargetUp Intelligent Ecosystem*</p>
+
+## 📁 Core Features
+* `/agent/upload`: Consumes mapped streams of Multipart data and saves them hierarchically (`Department/Employee/File`).
+* `/agent/download`: Authenticated byte-streaming for requested absolute paths.
+* `/agent/thumbnail`: Background video screenshot engine utilizing built-in FFmpeg modules.
+* `/agent/health`: Continually checks Physical Drive thresholds (Total/Free/Used Disk Space).
+* `/agent/create-folder` & `/agent/rename`: Physical directory interactions triggered securely over JWT.
