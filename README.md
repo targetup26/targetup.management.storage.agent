@@ -1,18 +1,38 @@
-# Targetup - Storage Agent Microservice
+<div align="center">
+  <img src="https://via.placeholder.com/150x150/0f172a/ef4444?text=TARGETUP" alt="Targetup Logo" />
+  <h1>Targetup - Storage Vault Agent</h1>
+  <p>An isolated, highly-available file streaming and distribution server operating seamlessly as a persistent Background Windows Service.</p>
+</div>
 
-A highly-available, distributed file storage service for the Targetup ecosystem. It offloads heavy I/O operations from the main backend and generates secure, expiring File Share Links. Uniquely, this microservice can be packaged and installed as a persistent **Windows Service**.
+<hr />
 
-## 🚀 Technology Stack
-* **Runtime**: Node.js
-* **Framework**: Express
-* **File Processing**: Multer (Stream handling), Archiver (Zip generation)
-* **System Operations**: check-disk-space (Storage limit monitoring), node-windows (OS-level service mounting)
-* **Security**: JSON Web Tokens (JWT validation natively independent of Core Backend)
-* **Logging**: Winston, Winston-Daily-Rotate-File
+## 📋 Table of Contents
+1. [System Overview](#system-overview)
+2. [Technology Stack](#technology-stack)
+3. [Environment Configuration (ENV)](#environment-configuration-env)
+4. [Installation & Windows Service Deployment](#installation--windows-service-deployment)
+5. [Core Endpoints & Operations](#core-endpoints--operations)
+6. [Security & Cross-Origin Auth](#security--cross-origin-auth)
+7. [Health Monitoring](#health-monitoring)
 
 ---
 
-## ⚙️ Environment Variables (`.env`)
+## 🏗️ System Overview
+The Storage Agent is a Node.js microservice tasked *solely* with offloading heavy I/O operations (file streams, large uploads, zipper distributions, memory checks) from the main backend. It stores actual physical byte data, receiving meta-instructions seamlessly from the Core API via Shared-Secret JWT encryptions.
+
+---
+
+## 🚀 Technology Stack
+* **Framework**: Express (Node.js)
+* **File Processing**: Multer (Memory-mapped parsing), Archiver (Flyweight ZIP compression)
+* **OS-Level Mounting**: `node-windows` (Installs Node scripts as a native Windows System Service)
+* **Metrics**: `check-disk-space` (Validates physical drive C: / D: thresholds)
+* **Security**: System-to-System JWT Authorization, CORS (Whitelisting Backend IPs)
+* **Logging System**: Winston & `winston-daily-rotate-file` (Archiving `.log` footprints automatically)
+
+---
+
+## ⚙️ Environment Configuration (`.env`)
 Create a `.env` file in the root of the `storage-agent` directory.
 
 ```ini
@@ -20,49 +40,66 @@ Create a `.env` file in the root of the `storage-agent` directory.
 AGENT_PORT=3001
 NODE_ENV=production
 
-# Storage Location Setup (Absolute path is recommended for production)
+# Storage Location Setup (Absolute paths strongly recommended for OS stability)
 STORAGE_PATH=C:\TargetStorage
 
-# Security Config (Must match Core Backend)
+# Security Config (Must be perfectly identical to the Core Backend)
 JWT_SECRET=super_secret_jwt_key_here
 
-# Identifier
+# Telemetry
 SERVER_ID=StorageNode_01
 ```
 
 ---
 
-## 🛠️ Installation & Setup
+## 🛠️ Installation & Windows Service Deployment
 
-1. **Prerequisites**: Ensure you have Node.js (v18+) installed.
-2. **Install Dependencies**:
+1. **Clone & Install**:
    ```bash
+   git clone https://github.com/targetup26/targetup.storage.agent.git
+   cd targetup.storage.agent
    npm install
    ```
-3. **Run the Development Server**:
+2. **Local Development Run**:
    ```bash
    npm start
    ```
-   The agent will run on `http://localhost:3001` and verify the `STORAGE_PATH` exists on startup.
+   *The server validates if `STORAGE_PATH` exists on boot. If not, development crashes.*
 
-4. **Install as a Windows Platform Service**:
-   Run the following to integrate the app securely into the host OS's Service Control Manager (SCM):
+### 🔥 Windows Platform Service Registration
+To ensure maximum uptime and bypass user-session login dependencies, this microservice registers directly into the Windows `services.msc`:
+
+1. Elevate your Command Prompt / Terminal as **Administrator**.
+2. Mount the Service:
    ```bash
    npm run install-service
    ```
-   *(To remove the service later, run `npm run uninstall-service`)*
-
-5. **Generate Packaged Executable (Electron-Builder)**:
-   ```bash
-   npm run build
-   ```
-   This generates standalone binaries in the `/dist` folder.
+3. Control the Service:
+   * The app will now automatically run on PC Booth under `Targetup_StorageAgent`.
+   * To remove it later safely: `npm run uninstall-service`.
 
 ---
 
-## 📁 Core Features
-* `/agent/upload`: Consumes mapped streams of Multipart data and saves them hierarchically (`Department/Employee/File`).
-* `/agent/download`: Authenticated byte-streaming for requested absolute paths.
-* `/agent/thumbnail`: Background video screenshot engine utilizing built-in FFmpeg modules.
-* `/agent/health`: Continually checks Physical Drive thresholds (Total/Free/Used Disk Space).
-* `/agent/create-folder` & `/agent/rename`: Physical directory interactions triggered securely over JWT.
+## 🗂️ Core Endpoints & Operations
+The payload structure heavily restricts access via custom headers: `X-Agent-Auth`.
+
+* **`POST /agent/upload`**: 
+  Accepts massive Multipart Streams piped directly from the Backend Backend's multer outputs, writing bytes sequentially to the designated `STORAGE_PATH/Department/EmployeeID/Filename`.
+* **`GET /agent/download`**:
+  Fetches absolute paths and pipes byte buffers as active downloads to the requester.
+* **`GET /agent/thumbnail`**:
+  Silently triggers FFmpeg processing to parse `.mp4` / `.mov` and spit out optimized JPG thumbnail screens for the Frontend FileManager layout.
+* **`POST /agent/create-folder` & `POST /agent/rename` / `DELETE /agent/delete`**:
+  Native FS operations bypassing SQL entirely.
+
+---
+
+## 🔒 Security & Cross-Origin Auth
+This service does **not** rely on User identities. It relies on Server-to-Server identities.
+The `requireAgentAuth.js` middleware parses the `X-Agent-Auth` header, decoding the timestamped JWT. Only the Core Backend possesses the symmetric Secret Key derived from `.env`. If a malicious IP attempts direct access to the Storage Agent without the signed key, it immediately responds with `401 Unauthorized`.
+
+---
+
+## 🏥 Health Monitoring
+* **`GET /agent/health`**:
+  Vital heartbeat telemetry. Constantly pings the host OS drive executing binary checks on Used Space (`free`, `size`). If space dips below critical thresholds (e.g., 98% full), it warns the core system to throttle uploads automatically.
